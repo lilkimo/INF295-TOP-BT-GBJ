@@ -42,13 +42,22 @@ typedef struct Vertex {
             profit = p;
         }
 
-        friend ostream& operator<<(ostream& os, const Vertex& a)
-        {
+        friend ostream& operator<<(ostream& os, const Vertex& a) {
             os << a.position << ' ' << a.profit;
             return os;
         }
 } Vertex;
 
+class Node;
+
+class Path {
+    public:
+        float timeSpent;
+        Path(Vector2& start, Vector2& dest, vector<Node*>& nodePath);
+        friend ostream& operator<<(ostream& os, const Path& a);
+    private:
+        vector<Vector2> path;
+};
 
 class Node {
     public:
@@ -91,7 +100,8 @@ class Node {
             return -1;
         }
 
-        float LessThanMaxTime(Vertex& start, Vertex& dest, float tmax) {
+        Path GetPath(Vertex& start, Vertex& dest) {
+            //vector<Vector2> path;
             vector<Node*> path;
             // Recorro el grafo hacia arriba hasta alcanzar la raíz, y armo el camino.
             for (Node* curr = this; curr->parent != NULL; curr = curr->parent)
@@ -101,31 +111,38 @@ class Node {
             sort(path.begin(), path.end(), [](Node* n1, Node* n2) -> bool { 
                 return (n1->value < n2->value);
             });
-            cout << "Path: " << "[i]" << start.position << ' ';
-            for (const auto &item: path)
-                cout << *item << ' ';
-            cout << "[f]" << dest.position;
 
-            // Sumo la distancia euclediana entre los nodos del camino, en orden de visita.
-            float timeSpent = 0;
-            Vector2 prev = start.position;
-            for (Node* node: path) {
-                timeSpent += prev.Distance(node->vertex.position);
-                if (tmax <= timeSpent)
-                    return false;
-                prev = node->vertex.position;
-            }
-            timeSpent += prev.Distance(dest.position);
-            cout << " d" << timeSpent;
-            return tmax >= timeSpent;
+            return Path(start.position, dest.position, path);
         }
 
-        friend ostream& operator<<(ostream& os, const Node& a)
-        {
+        friend ostream& operator<<(ostream& os, const Node& a) {
             os << 'l' << a.level << " v" << a.value << ' ' << a.vertex;
             return os;
         }
 };
+
+Path::Path(Vector2& start, Vector2& dest, vector<Node*>& nodePath) {
+    timeSpent = 0;
+    path.push_back(start);
+    // Sumo la distancia euclediana entre los nodos del camino, en orden de visita.
+    Vector2 prev = start;
+    for (Node* node: nodePath) {
+        path.push_back(node->vertex.position);
+        timeSpent += prev.Distance(node->vertex.position);
+        prev = node->vertex.position;
+    }
+    timeSpent += prev.Distance(dest);
+    path.push_back(dest);
+}
+
+ostream& operator<<(ostream& os, const Path& a) {
+    os << "[i]";
+    int i;
+    for (i = 0; i < a.path.size() - 1; i++)
+        cout << a.path[i] << ' ';
+    os << "[f]" << a.path[i] << ' ' << a.timeSpent;
+    return os;
+}
 
 vector<Vertex> readFile(string d, int* n, int* m, float* tmax) {
     string line;
@@ -171,17 +188,19 @@ int main() {
             next->value = val;
             curr->children.push_back(next);
             cout << *next << endl;
-            if (!next->LessThanMaxTime(vertices.front(), vertices.back(), tmax))
+            Path path = next->GetPath(vertices.front(), vertices.back());
+            cout << path;
+            if (path.timeSpent > tmax)
                 cout << " false" << endl;
             else {
                 cout << " true" << endl;
-                if (next->level < vertices.size() - 2 - 1)
+                if (path.timeSpent < tmax && (next->level < vertices.size() - 2 - 1))
                 {
                     curr = next;
                     cout << "curr = next" << endl;
                 }
                 else
-                    cout << "max level" << endl;
+                    cout << "max level/max time" << endl;
             }
         }
         else if (curr != &root)
